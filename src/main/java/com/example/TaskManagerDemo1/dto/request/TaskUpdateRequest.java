@@ -14,5 +14,4 @@ public class TaskUpdateRequest {
     String status;
     String priority;
     LocalDate deadline;
-
 }

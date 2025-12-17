@@ -15,4 +15,5 @@ public class TaskAddRequest {
     String status;
     String priority;
     LocalDate deadline;
+    Integer parentTaskId;
 }

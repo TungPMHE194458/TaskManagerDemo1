@@ -3,10 +3,9 @@ package com.example.TaskManagerDemo1.controller;
 import com.example.TaskManagerDemo1.dto.response.ApiResponse;
 import com.example.TaskManagerDemo1.dto.request.TaskAddRequest;
 import com.example.TaskManagerDemo1.dto.request.TaskUpdateRequest;
-import com.example.TaskManagerDemo1.entity.Tasks;
+import com.example.TaskManagerDemo1.dto.response.TaskResponse;
 import com.example.TaskManagerDemo1.service.TaskService;
 import org.springframework.beans.factory.annotation.Autowired;
-import org.springframework.security.core.Authentication;
 import org.springframework.web.bind.annotation.*;
 
 import java.util.List;
@@ -18,30 +17,33 @@ public class TaskController {
     private TaskService taskService;
 
     @PostMapping
-    public ApiResponse<Tasks> addTask(@RequestBody TaskAddRequest request ){
-       return taskService.addTask(request);
+    public ApiResponse<TaskResponse> createTask(
+            @RequestBody TaskAddRequest request) {
+        return taskService.createTask(request);
     }
-
     @GetMapping
-    public ApiResponse<List<Tasks>> getAllTasks(){
-        return taskService.getAllTasks();
+    public ApiResponse<List<TaskResponse>> getMyTasks() {
+        return taskService.getMyRootTasks();
     }
-    @GetMapping("/{taskId}")
-    public ApiResponse<Tasks> getTaskById(@PathVariable int taskId){
-       return taskService.getTaskById(taskId);
-    }
-    @GetMapping("/user/{userId}")
-    public ApiResponse<List<Tasks>> getUserTasks(@PathVariable int userId){
-        return taskService.getTasksByUserId(userId);
+    /* GET SUBTASK */
+    @GetMapping("/{taskId}/subtasks")
+    public ApiResponse<List<TaskResponse>> getSubTasks(
+            @PathVariable int taskId) {
+        return taskService.getSubTasks(taskId);
     }
 
+    /* UPDATE TASK */
     @PutMapping("/{taskId}")
-    public ApiResponse<Tasks> updateTask(@PathVariable("taskId") int taskId, @RequestBody TaskUpdateRequest request){
+    public ApiResponse<TaskResponse> updateTask(
+            @PathVariable int taskId,
+            @RequestBody TaskUpdateRequest request) {
         return taskService.updateTask(taskId, request);
     }
 
+    /* DELETE TASK */
     @DeleteMapping("/{taskId}")
-    public ApiResponse<String> deleteTask(@PathVariable("taskId") int taskId){
-       return taskService.deleteTaskById(taskId);
+    public ApiResponse<String> deleteTask(
+            @PathVariable int taskId) {
+        return taskService.deleteTask(taskId);
     }
 }

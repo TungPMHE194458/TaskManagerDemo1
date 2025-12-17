@@ -3,6 +3,7 @@ package com.example.TaskManagerDemo1.service;
 import com.example.TaskManagerDemo1.dto.request.TaskAddRequest;
 import com.example.TaskManagerDemo1.dto.request.TaskUpdateRequest;
 import com.example.TaskManagerDemo1.dto.response.ApiResponse;
+import com.example.TaskManagerDemo1.dto.response.TaskResponse;
 import com.example.TaskManagerDemo1.entity.Tasks;
 import com.example.TaskManagerDemo1.entity.Users;
 import com.example.TaskManagerDemo1.exception.AppException;
@@ -26,17 +27,46 @@ public class TaskService {
     @Autowired
     private UserRepository userRepository;
 
+    private TaskResponse mapToResponse(Tasks task) {
+
+        return TaskResponse.builder()
+                .ID(task.getID())
+                .title(task.getTitle())
+                .description(task.getDescription())
+                .status(task.getStatus())
+                .priority(task.getPriority())
+                .deadline(task.getDeadline())
+                .userId(task.getUser().getID())
+                .parentTaskID(
+                        task.getParentTask() != null
+                                ? task.getParentTask().getID()
+                                : null
+                )
+                .subTasks(
+                        task.getSubTasks() == null
+                                ? List.of()
+                                : task.getSubTasks()
+                                .stream()
+                                .map(this::mapToResponse)
+                                .toList()
+                )
+                .build();
+    }
+
+    private Users getCurrentUser() {
+        Authentication auth = SecurityContextHolder
+                .getContext()
+                .getAuthentication();
+
+        return userRepository.findByUsername(auth.getName())
+                .orElseThrow(() -> new RuntimeException("User not found"));
+    }
     /**
      * CREATE TASK (USER / ADMIN)
      */
-    @PreAuthorize("hasRole('USER') or hasRole('ADMIN')")
-    public ApiResponse<Tasks> addTask(TaskAddRequest request) {
+    public ApiResponse<TaskResponse> createTask(TaskAddRequest request) {
 
-        Authentication authentication =
-                SecurityContextHolder.getContext().getAuthentication();
-
-        Users user = userRepository.findByUsername(authentication.getName())
-                .orElseThrow(() -> new AppException(ErrorCode.USER_NOT_FOUND));
+        Users user = getCurrentUser();
 
         Tasks task = new Tasks();
         task.setTitle(request.getTitle());
@@ -45,37 +75,84 @@ public class TaskService {
         task.setPriority(request.getPriority());
         task.setDeadline(request.getDeadline());
         task.setUser(user);
-
-        return ApiResponse.success(taskRepository.save(task));
+        //case new task has parent
+        if (request.getParentTaskId() != null) {
+            Tasks parent = taskRepository
+                    .findByIDAndUser(request.getParentTaskId(), user)
+                    //case user's task is not contain parent task
+                    .orElseThrow(() -> new AppException(ErrorCode.PARENT_TASK_NOT_FOUND));
+            //case exist parent task in user's task
+            task.setParentTask(parent);
+        }
+        taskRepository.save(task);
+        return ApiResponse.success(mapToResponse(task));
     }
 
-    /**
-     * GET ALL TASKS (ADMIN)
-     */
-    @PreAuthorize("hasRole('ADMIN')")
-    public ApiResponse<List<Tasks>> getAllTasks() {
-        return ApiResponse.success(taskRepository.findAll());
-    }
 
     /**
      * GET TASK BY ID (OWNER or ADMIN)
      */
     @PreAuthorize("@taskSecurity.isTaskOwner(#id, authentication) or hasRole('ADMIN')")
-    public ApiResponse<Tasks> getTaskById(int id) {
+    public ApiResponse<TaskResponse> getTaskById(int id) {
 
         Tasks task = taskRepository.findById(id)
                 .orElseThrow(() -> new AppException(ErrorCode.TASK_NOT_FOUND));
 
-        return ApiResponse.success(task);
+        return ApiResponse.success(mapToResponse(task));
+    }
+    /**
+     * GET ALL TASKS (ADMIN)
+     */
+
+    @PreAuthorize("hasRole('ADMIN')")
+    public ApiResponse<List<TaskResponse>> getAllTasks() {
+
+        return ApiResponse.success(
+                taskRepository.findAll()
+                        .stream()
+                        .map(this::mapToResponse)
+                        .toList()
+        );
+    }
+    /**
+     * GET ROOT TASK (task goc)
+     */
+    public ApiResponse<List<TaskResponse>> getMyRootTasks() {
+
+        Users user = getCurrentUser();
+
+        return ApiResponse.success(
+                taskRepository.findByUserAndParentTaskIsNull(user)
+                        .stream()
+                        .map(this::mapToResponse)
+                        .toList()
+        );
     }
 
     /**
+     * GET SUB TASK (task goc)
+     */
+    public ApiResponse<List<TaskResponse>> getSubTasks(int parentId) {
+        Users user = getCurrentUser();
+
+        taskRepository.findByIDAndUser(parentId, user)
+                .orElseThrow(() -> new AppException(ErrorCode.TASK_NOT_FOUND));
+
+        return ApiResponse.success(
+                taskRepository.findByParentTaskID(parentId)
+                        .stream()
+                        .map(this::mapToResponse)
+                        .toList()
+        );
+    }
+    /**
      * UPDATE TASK (OWNER or ADMIN)
      */
-    @PreAuthorize("@taskSecurity.isTaskOwner(#taskId, authentication) or hasRole('ADMIN')")
-    public ApiResponse<Tasks> updateTask(int taskId, TaskUpdateRequest request) {
+    public ApiResponse<TaskResponse> updateTask(int taskId, TaskUpdateRequest request) {
 
-        Tasks task = taskRepository.findById(taskId)
+        Users user = getCurrentUser();
+
+        Tasks task = taskRepository.findByIDAndUser(taskId, user)
                 .orElseThrow(() -> new AppException(ErrorCode.TASK_NOT_FOUND));
 
         task.setTitle(request.getTitle());
@@ -83,28 +160,23 @@ public class TaskService {
         task.setStatus(request.getStatus());
         task.setPriority(request.getPriority());
         task.setDeadline(request.getDeadline());
-
-        return ApiResponse.success(taskRepository.save(task));
+        taskRepository.save(task);
+        return ApiResponse.success(mapToResponse(task));
     }
 
     /**
      * DELETE TASK (OWNER or ADMIN)
      */
-    @PreAuthorize("@taskSecurity.isTaskOwner(#id, authentication) or hasRole('ADMIN')")
-    public ApiResponse<String> deleteTaskById(int id) {
+    public ApiResponse<String> deleteTask(int taskId) {
 
-        Tasks task = taskRepository.findById(id)
+        Users user = getCurrentUser();
+
+        Tasks task = taskRepository.findByIDAndUser(taskId, user)
                 .orElseThrow(() -> new AppException(ErrorCode.TASK_NOT_FOUND));
 
         taskRepository.delete(task);
-        return ApiResponse.success("Task " + id + " has been deleted");
+        return ApiResponse.success("Deleted successfully");
     }
 
-    /**
-     * GET TASKS BY USER (SELF or ADMIN)
-     */
-    @PreAuthorize("hasRole('ADMIN') or @userSecurity.isUserSelf(#userId, authentication)")
-    public ApiResponse<List<Tasks>> getTasksByUserId(Integer userId) {
-        return ApiResponse.success(taskRepository.findByUser_ID(userId));
-    }
+
 }

@@ -6,12 +6,13 @@ import lombok.Getter;
 public enum ErrorCode {
 
     // USER
-    USER_NOT_FOUND(404, "User not found"),
-    USERNAME_EXISTED(400, "Username already exists"),
+    USER_NOT_FOUND(101, "User not found"),
+    USERNAME_EXISTED(102, "Username already exists"),
 
     // TASK
-    TASK_NOT_FOUND(404, "Task not found"),
-    TASK_ACCESS_DENIED(403, "You do not have permission to access this task"),
+    PARENT_TASK_NOT_FOUND(201, "Parent task not found"),
+    TASK_NOT_FOUND(202, "Task not found"),
+    TASK_ACCESS_DENIED(203, "You do not have permission to access this task"),
 
     // AUTH
     INVALID_USERNAME_OR_PASSWORD(401, "Invalid username or password"),
