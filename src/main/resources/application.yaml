@@ -9,9 +9,21 @@ spring:
     username: sa
     password: 123456
 
-  jpa:
+jpa:
+  hibernate:
+    ddl-auto: update
+  show-sql: true                  # Đã có - in SQL ra console
+  properties:
     hibernate:
-      ddl-auto: update
-    show-sql: true
+      format_sql: true            # Định dạng SQL cho dễ đọc (xuống dòng, thụt lề)
+      use_sql_comments: true      # Thêm comment giải thích câu SQL từ đâu
+
+logging:
+  level:
+    org.hibernate.SQL: DEBUG
+    org.hibernate.orm.jdbc.bind: TRACE
+    org.hibernate.type.descriptor.sql.BasicBinder: TRACE
+    org.springframework.transaction: TRACE   # Bonus: xem transaction bắt đầu/kết thúc
+    com.example.TaskManagerDemo1: DEBUG     # Log của chính package dự án bạn (rất hữu ích)
 jwt:
   signerKey : "afba56f4df0a373b5b53e3ee4719ce7601436eadd7e593cf606eafc86c335e83"

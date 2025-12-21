@@ -8,10 +8,7 @@ import java.util.List;
 import java.util.Optional;
 
 public interface TaskRepository extends JpaRepository<Tasks, Integer> {
+    void deleteByParentTask(Tasks parent);
+    List<Tasks> findAllByParentTask(Tasks parent);
 
-    List<Tasks> findByUserAndParentTaskIsNull(Users user);
-
-    List<Tasks> findByParentTaskID(int parentTaskID);
-
-    Optional<Tasks> findByIDAndUser(int id, Users user);
 }

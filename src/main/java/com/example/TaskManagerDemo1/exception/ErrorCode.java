@@ -13,7 +13,9 @@ public enum ErrorCode {
     PARENT_TASK_NOT_FOUND(201, "Parent task not found"),
     TASK_NOT_FOUND(202, "Task not found"),
     TASK_ACCESS_DENIED(203, "You do not have permission to access this task"),
-
+    OWNER_NOT_FOUND(204, "Owner not found"),
+    MEMBER_NOT_FOUND(205, "Member not found"),
+    MEMBER_ALREADY_EXISTS(206, "Member already exists"),
     // AUTH
     INVALID_USERNAME_OR_PASSWORD(401, "Invalid username or password"),
     TOKEN_GENERATION_FAILED(500, "Cannot generate token"),

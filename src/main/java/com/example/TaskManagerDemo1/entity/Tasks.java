@@ -3,13 +3,17 @@ package com.example.TaskManagerDemo1.entity;
 import jakarta.persistence.*;
 import lombok.AccessLevel;
 import lombok.Data;
+import lombok.Getter;
+import lombok.Setter;
 import lombok.experimental.FieldDefaults;
 
 import java.time.LocalDate;
 import java.util.List;
+import java.util.Set;
 
 @Entity
-@Data
+@Getter
+@Setter
 @FieldDefaults(level = AccessLevel.PRIVATE)
 @Table(name = "tasks")
 public class Tasks {
@@ -24,10 +28,10 @@ public class Tasks {
     String priority;
     LocalDate deadline;
 
-    /* ---------------- USER ---------------- */
-    @ManyToOne
-    @JoinColumn(name = "user_id", nullable = false)
-    Users user;
+    @OneToMany(mappedBy = "task",
+            cascade = CascadeType.ALL,
+            orphanRemoval = true)
+    Set<UserTask> userTasks;
 
     /* ------------ SELF REFERENCE ------------ */
 
@@ -37,6 +41,7 @@ public class Tasks {
     Tasks parentTask;
 
     // Các subtask
+
     @OneToMany(mappedBy = "parentTask",
             cascade = CascadeType.ALL,
             orphanRemoval = true)

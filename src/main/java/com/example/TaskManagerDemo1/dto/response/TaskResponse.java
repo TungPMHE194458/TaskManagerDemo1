@@ -14,13 +14,21 @@ import java.util.List;
 
 public class TaskResponse {
 
+
     int ID;
     String title;
     String description;
     String status;
     String priority;
     LocalDate deadline;
-    Integer userId;
+
+    /* -------- OWNER -------- */
+    UserBrief owner;
+
+    /* -------- MEMBERS -------- */
+    List<UserBrief> members;
+
+    /* -------- SUB TASK -------- */
     Integer parentTaskID;
     List<TaskResponse> subTasks;
 }

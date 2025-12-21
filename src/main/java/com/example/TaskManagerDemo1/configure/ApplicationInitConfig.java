@@ -13,32 +13,32 @@ import org.springframework.context.annotation.Bean;
 import org.springframework.context.annotation.Configuration;
 import org.springframework.security.crypto.password.PasswordEncoder;
 
-import java.util.HashSet;
+import java.util.Set;
+
 @Slf4j
 @Configuration
 @RequiredArgsConstructor
-@FieldDefaults(level = AccessLevel.PRIVATE,  makeFinal = true)
+@FieldDefaults(level = AccessLevel.PRIVATE, makeFinal = true)
 public class ApplicationInitConfig {
-    @Autowired
+
     PasswordEncoder passwordEncoder;
+    UserRepository userRepository;
 
     @Bean
-    ApplicationRunner applicationRunner(UserRepository userRepository) {
+    ApplicationRunner initAdmin() {
         return args -> {
-            if(userRepository.findByUsername("admin")==null){
-
-                var roles = new HashSet<String>();
-                roles.add(Role.ADMIN.name());
-                Users user = Users.builder()
-                        .username("admin")
-                        .password(passwordEncoder.encode("admin"))
-                        .roles(roles)
-                        .build();
-
-                userRepository.save(user);
-                log.warn("Admin has been created");
+            if (userRepository.findByUsername("admin").isPresent()) {
+                return;
             }
 
+            Users admin = Users.builder()
+                    .username("admin")
+                    .password(passwordEncoder.encode("admin"))
+                    .roles(Set.of(Role.ADMIN.name()))
+                    .build();
+
+            userRepository.save(admin);
+            log.warn("Admin account created");
         };
     }
 }

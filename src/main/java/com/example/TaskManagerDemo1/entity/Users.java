@@ -1,14 +1,14 @@
 package com.example.TaskManagerDemo1.entity;
 
+import com.fasterxml.jackson.annotation.JsonIgnore;
 import jakarta.persistence.*;
 import lombok.*;
 import lombok.experimental.FieldDefaults;
-
-import java.util.List;
 import java.util.Set;
 
 @Entity
-@Data
+@Getter
+@Setter
 @Builder
 @AllArgsConstructor
 @NoArgsConstructor
@@ -23,4 +23,11 @@ public class Users {
     String firstName;
     String lastName;
     Set<String> roles;
+
+    /* -------- TASKS -------- */
+    @OneToMany(mappedBy = "user",
+            cascade = CascadeType.ALL,
+            orphanRemoval = true)
+    @JsonIgnore
+    Set<UserTask> userTasks;
 }
