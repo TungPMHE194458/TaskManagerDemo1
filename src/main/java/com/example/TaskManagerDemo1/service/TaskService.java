@@ -6,6 +6,8 @@ import com.example.TaskManagerDemo1.dto.response.*;
 import com.example.TaskManagerDemo1.entity.Tasks;
 import com.example.TaskManagerDemo1.entity.UserTask;
 import com.example.TaskManagerDemo1.entity.Users;
+import com.example.TaskManagerDemo1.enums.MemberStatus;
+import com.example.TaskManagerDemo1.enums.Role;
 import com.example.TaskManagerDemo1.enums.TaskRole;
 import com.example.TaskManagerDemo1.exception.AppException;
 import com.example.TaskManagerDemo1.exception.ErrorCode;
@@ -19,8 +21,8 @@ import org.springframework.security.core.Authentication;
 import org.springframework.security.core.context.SecurityContextHolder;
 import org.springframework.stereotype.Service;
 
-import java.util.ArrayList;
 import java.util.List;
+import java.util.Optional;
 
 @Service
 @RequiredArgsConstructor
@@ -50,6 +52,18 @@ public class TaskService {
                 .orElseThrow(() -> new AppException(ErrorCode.FORBIDDEN));
     }
 
+    private UserTask checkAcceptedMember(Tasks task, Users user) {
+
+        UserTask ut = getUserTaskOrThrow(task, user);
+
+        if (ut.getStatus() != MemberStatus.ACCEPTED)
+            throw new AppException(ErrorCode.FORBIDDEN);
+        return ut;
+    }
+
+
+    /* ===================== MAPPING ===================== */
+
     private UserBrief toUserBrief(Users user) {
         return UserBrief.builder()
                 .id(user.getID())
@@ -57,8 +71,6 @@ public class TaskService {
                 .fullName(user.getFirstName() + " " + user.getLastName())
                 .build();
     }
-
-    /* ===================== MAPPING ===================== */
 
     private MemberResponse toMemberResponse(Users user) {
         return MemberResponse.builder()
@@ -116,7 +128,6 @@ public class TaskService {
     /* ===================== CREATE ===================== */
 
     /**
-     * CREATE TASK
      * Người tạo = OWNER
      */
     public ApiResponse<TaskResponse> createTask(TaskAddRequest request) {
@@ -144,11 +155,53 @@ public class TaskService {
                 .user(user)
                 .task(task)
                 .role(TaskRole.OWNER)
+                .status(MemberStatus.ACCEPTED)
                 .build();
 
         userTaskRepository.save(owner);
 
         return ApiResponse.success(mapToResponse(task));
+    }
+
+    @Transactional
+    public ApiResponse<String> acceptTask(int taskId) {
+
+        Users currentUser = getCurrentUser();
+
+        Tasks task = taskRepository.findById(taskId)
+                .orElseThrow(() -> new AppException(ErrorCode.TASK_NOT_FOUND));
+
+        UserTask ut = userTaskRepository
+                .findByTaskAndUserAndStatus(
+                        task,
+                        currentUser,
+                        MemberStatus.PENDING
+                )
+                .orElseThrow(() -> new AppException(ErrorCode.INVITATION_NOT_FOUND));
+
+        ut.setStatus(MemberStatus.ACCEPTED);
+
+        return ApiResponse.success("Task accepted");
+    }
+    @Transactional
+    public ApiResponse<String> rejectTask(int taskId) {
+
+        Users currentUser = getCurrentUser();
+
+        Tasks task = taskRepository.findById(taskId)
+                .orElseThrow(() -> new AppException(ErrorCode.TASK_NOT_FOUND));
+
+        UserTask ut = userTaskRepository
+                .findByTaskAndUserAndStatus(
+                        task,
+                        currentUser,
+                        MemberStatus.PENDING
+                )
+                .orElseThrow(() -> new AppException(ErrorCode.INVITATION_NOT_FOUND));
+
+        ut.setStatus(MemberStatus.REJECTED);
+
+        return ApiResponse.success("Task rejected");
     }
 
     /* ===================== READ ===================== */
@@ -188,7 +241,8 @@ public class TaskService {
         Users user = getCurrentUser();
 
         return ApiResponse.success(
-                userTaskRepository.findByUser(user)
+                userTaskRepository
+                        .findByUserAndStatus(user, MemberStatus.ACCEPTED)
                         .stream()
                         .map(UserTask::getTask)
                         .filter(t -> t.getParentTask() == null)
@@ -206,7 +260,7 @@ public class TaskService {
                 .orElseThrow(() -> new AppException(ErrorCode.TASK_NOT_FOUND));
 
         Users user = getCurrentUser();
-        getUserTaskOrThrow(parent, user); // check access
+        checkAcceptedMember(parent, user); // check access
 
         return ApiResponse.success(
                 parent.getSubTasks()
@@ -215,6 +269,22 @@ public class TaskService {
                         .toList()
         );
     }
+    /*
+    * GET INTITATION
+     */
+    public ApiResponse<List<TaskResponse>> getMyInvitations() {
+
+        Users currentUser = getCurrentUser();
+
+        List<TaskResponse> invitations = userTaskRepository
+                .findByUserAndStatus(currentUser, MemberStatus.PENDING)
+                .stream()
+                .map(UserTask::getTask)
+                .map(this::mapToResponse)
+                .toList();
+
+        return ApiResponse.success(invitations);
+    }
 
     /* ===================== UPDATE ===================== */
 
@@ -222,6 +292,7 @@ public class TaskService {
      * UPDATE TASK
      * Chỉ OWNER
      */
+    @Transactional
     public ApiResponse<TaskResponse> updateTask(
             int taskId,
             TaskUpdateRequest request) {
@@ -231,7 +302,7 @@ public class TaskService {
         Tasks task = taskRepository.findById(taskId)
                 .orElseThrow(() -> new AppException(ErrorCode.TASK_NOT_FOUND));
 
-        UserTask ut = getUserTaskOrThrow(task, user);
+        UserTask ut = checkAcceptedMember(task, user);
         if (ut.getRole() != TaskRole.OWNER)
             throw new AppException(ErrorCode.FORBIDDEN);
 
@@ -246,10 +317,9 @@ public class TaskService {
         return ApiResponse.success(mapToResponse(task));
     }
 
-    /* ===================== DELETE ===================== */
 
 
-
+    @PreAuthorize("hasRole('ADMIN')")
     public ApiResponse<String> addMember(int taskId, int userId) {
 
         Users owner = getCurrentUser();
@@ -273,6 +343,66 @@ public class TaskService {
         }
         return ApiResponse.success("Member added");
     }
+    @Transactional
+    public ApiResponse<String> inviteMember(int taskId, int userId) {
+
+        Users inviter = getCurrentUser();
+
+        Tasks task = taskRepository.findById(taskId)
+                .orElseThrow(() -> new AppException(ErrorCode.TASK_NOT_FOUND));
+
+        // check quyền
+        if (!inviter.getRoles().contains(Role.ADMIN.name())) {
+            UserTask ut = userTaskRepository
+                    .findByTaskAndUserAndStatus(
+                            task,
+                            inviter,
+                            MemberStatus.ACCEPTED
+                    )
+                    .orElseThrow(() -> new AppException(ErrorCode.FORBIDDEN));
+
+            if (ut.getRole() != TaskRole.OWNER)
+                throw new AppException(ErrorCode.FORBIDDEN);
+        }
+
+        Users invitedUser = userRepository.findById(userId)
+                .orElseThrow(() -> new AppException(ErrorCode.USER_NOT_FOUND));
+
+        // kiểm tra đã từng tồn tại UserTask chưa
+        Optional<UserTask> existingUT =
+                userTaskRepository.findByTaskAndUser(task, invitedUser);
+
+        if (existingUT.isPresent()) {
+            UserTask ut = existingUT.get();
+
+            switch (ut.getStatus()) {
+                case PENDING:
+                    throw new AppException(ErrorCode.USER_ALREADY_INVITED);
+
+                case ACCEPTED:
+                    throw new AppException(ErrorCode.USER_ALREADY_IN_TASK);
+
+                case REJECTED:
+                    // mời lại → reset status
+                    ut.setStatus(MemberStatus.PENDING);
+                    ut.setRole(TaskRole.MEMBER);
+                    userTaskRepository.save(ut);
+                    return ApiResponse.success("Invitation re-sent");
+            }
+        }
+
+
+        UserTask newUT = UserTask.builder()
+                .task(task)
+                .user(invitedUser)
+                .role(TaskRole.MEMBER)
+                .status(MemberStatus.PENDING)
+                .build();
+
+        userTaskRepository.save(newUT);
+
+        return ApiResponse.success("Invitation sent");
+    }
 
 
 
@@ -284,26 +414,42 @@ public class TaskService {
         Tasks task = taskRepository.findById(taskId)
                 .orElseThrow(() -> new AppException(ErrorCode.TASK_NOT_FOUND));
 
-        // kiểm tra user có thuộc task không
-        userTaskRepository.findByTaskAndUser(task, currentUser)
-                .orElseThrow(() -> new AppException(ErrorCode.FORBIDDEN));
+        if (!currentUser.getRoles().contains(Role.ADMIN.name())) {
+            // check quyền: phải ACCEPTED
+            userTaskRepository
+                    .findByTaskAndUserAndStatus(
+                            task,
+                            currentUser,
+                            MemberStatus.ACCEPTED
+                    )
+                    .orElseThrow(() -> new AppException(ErrorCode.FORBIDDEN));
+        }
 
-        // ===== OWNER =====
+        // OWNER
         MemberResponse owner =
-                userTaskRepository.findFirstByTaskAndRole(task, TaskRole.OWNER)
-                        .map(UserTask::getUser)          // Optional<Users>
-                        .map(this::toMemberResponse)     // Optional<MemberResponse>
+                userTaskRepository
+                        .findByTaskAndRoleAndStatus(
+                                task,
+                                TaskRole.OWNER,
+                                MemberStatus.ACCEPTED
+                        )
+                        .map(UserTask::getUser)
+                        .map(this::toMemberResponse)
                         .orElseThrow(() ->
                                 new AppException(ErrorCode.OWNER_NOT_FOUND)
                         );
 
-
-        // ===== MEMBERS =====
+        // MEMBERS
         List<MemberResponse> members =
-                userTaskRepository.findByTaskAndRole(task, TaskRole.MEMBER)
+                userTaskRepository
+                        .findByTaskAndRoleAndStatus(
+                                task,
+                                TaskRole.MEMBER,
+                                MemberStatus.ACCEPTED
+                        )
                         .stream()
-                        .map(UserTask::getUser)          // Stream<Users>
-                        .map(this::toMemberResponse)     // Stream<MemberResponse>
+                        .map(UserTask::getUser)
+                        .map(this::toMemberResponse)
                         .toList();
 
         return ApiResponse.success(
@@ -313,6 +459,9 @@ public class TaskService {
                         .build()
         );
     }
+
+    /* ===================== DELETE ===================== */
+
     /**
      * DELETE TASK
      * Chỉ OWNER mới được xóa
@@ -325,13 +474,22 @@ public class TaskService {
         Tasks task = taskRepository.findById(taskId)
                 .orElseThrow(() -> new AppException(ErrorCode.TASK_NOT_FOUND));
 
-        UserTask ut = getUserTaskOrThrow(task, currentUser);
-        if (ut.getRole() != TaskRole.OWNER) {
-            throw new AppException(ErrorCode.FORBIDDEN);
+        // ADMIN được xóa luôn
+        if (!currentUser.getRoles().contains(Role.ADMIN.name())) {
+
+            UserTask ut = userTaskRepository
+                    .findByTaskAndUserAndStatus(
+                            task,
+                            currentUser,
+                            MemberStatus.ACCEPTED
+                    )
+                    .orElseThrow(() -> new AppException(ErrorCode.FORBIDDEN));
+
+            if (ut.getRole() != TaskRole.OWNER)
+                throw new AppException(ErrorCode.FORBIDDEN);
         }
 
         taskRepository.delete(task);
-
         return ApiResponse.success("Task deleted successfully");
     }
 
@@ -339,28 +497,69 @@ public class TaskService {
 
 
 
+
     @Transactional
     public ApiResponse<String> removeMember(int taskId, int userId) {
-        Users owner = getCurrentUser();
+
+        Users currentUser = getCurrentUser();
+
         Tasks task = taskRepository.findById(taskId)
                 .orElseThrow(() -> new AppException(ErrorCode.TASK_NOT_FOUND));
 
-        // Chỉ OWNER mới được xoá member
-        UserTask ownerUT = getUserTaskOrThrow(task, owner);
-        if (ownerUT.getRole() != TaskRole.OWNER)
-            throw new AppException(ErrorCode.FORBIDDEN);
+        // check quyền OWNER hoặc ADMIN
+        if (!currentUser.getRoles().contains(Role.ADMIN.name())) {
+
+            UserTask ownerUT = userTaskRepository
+                    .findByTaskAndUserAndStatus(
+                            task,
+                            currentUser,
+                            MemberStatus.ACCEPTED
+                    )
+                    .orElseThrow(() -> new AppException(ErrorCode.FORBIDDEN));
+
+            if (ownerUT.getRole() != TaskRole.OWNER)
+                throw new AppException(ErrorCode.FORBIDDEN);
+        }
 
         Users member = userRepository.findById(userId)
                 .orElseThrow(() -> new AppException(ErrorCode.USER_NOT_FOUND));
 
         UserTask ut = userTaskRepository
-                .findByUserAndTask(member, task)
+                .findByTaskAndUserAndStatus(
+                        task,
+                        member,
+                        MemberStatus.ACCEPTED
+                )
                 .orElseThrow(() -> new AppException(ErrorCode.MEMBER_NOT_FOUND));
 
-        // Xoá quan hệ member
-        userTaskRepository.delete(ut);
+        // KICK → đổi status
+        ut.setStatus(MemberStatus.LEFT);
 
-        return ApiResponse.success("Member deleted");
+        return ApiResponse.success("Member removed from task");
+    }
+    @Transactional
+    public ApiResponse<String> leaveTask(int taskId) {
+
+        Users currentUser = getCurrentUser();
+
+        Tasks task = taskRepository.findById(taskId)
+                .orElseThrow(() -> new AppException(ErrorCode.TASK_NOT_FOUND));
+
+        UserTask ut = userTaskRepository
+                .findByTaskAndUserAndStatus(
+                        task,
+                        currentUser,
+                        MemberStatus.ACCEPTED
+                )
+                .orElseThrow(() -> new AppException(ErrorCode.NOT_A_TASK_MEMBER));
+
+        // OWNER không được leave trực tiếp
+        if (ut.getRole() == TaskRole.OWNER)
+            throw new AppException(ErrorCode.OWNER_CANNOT_LEAVE);
+
+        ut.setStatus(MemberStatus.LEFT);
+
+        return ApiResponse.success("Left task successfully");
     }
 
 }

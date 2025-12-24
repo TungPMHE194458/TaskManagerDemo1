@@ -1,5 +1,6 @@
 package com.example.TaskManagerDemo1.entity;
 
+import com.example.TaskManagerDemo1.enums.Role;
 import com.fasterxml.jackson.annotation.JsonIgnore;
 import jakarta.persistence.*;
 import lombok.*;

@@ -1,5 +1,5 @@
 server:
-  port : 8080
+  port : 8386
   servlet:
     context-path : /tmdemo1
 
@@ -9,14 +9,14 @@ spring:
     username: sa
     password: 123456
 
-jpa:
-  hibernate:
-    ddl-auto: update
-  show-sql: true                  # Đã có - in SQL ra console
-  properties:
+  jpa:
     hibernate:
-      format_sql: true            # Định dạng SQL cho dễ đọc (xuống dòng, thụt lề)
-      use_sql_comments: true      # Thêm comment giải thích câu SQL từ đâu
+      ddl-auto: create
+    show-sql: true                  # Đã có - in SQL ra console
+    properties:
+      hibernate:
+        format_sql: true            # Định dạng SQL cho dễ đọc (xuống dòng, thụt lề)
+        use_sql_comments: true      # Thêm comment giải thích câu SQL từ đâu
 
 logging:
   level:

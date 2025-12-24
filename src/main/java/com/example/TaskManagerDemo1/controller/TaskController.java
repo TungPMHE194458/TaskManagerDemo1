@@ -47,12 +47,7 @@ public class TaskController {
             @PathVariable int taskId) {
         return taskService.getSubTasks(taskId);
     }
-    //GET MEMBER OF TASK
-    @GetMapping("/{id}/members")
-    public ApiResponse<TaskMembersResponse> getMembers(
-            @PathVariable int id) {
-        return taskService.getMembers(id);
-    }
+
 
     /* UPDATE TASK */
     @PutMapping("/{id}")
@@ -76,11 +71,58 @@ public class TaskController {
             @PathVariable int userId) {
         return taskService.addMember(id, userId);
     }
+    /* ===================== MEMBERS ===================== */
 
-    @DeleteMapping("/{id}/members/{userId}")
-    public ApiResponse<String> removeMember(
-            @PathVariable int id,
+    // GET MEMBERS OF TASK
+    @GetMapping("/{taskId}/members")
+    public ApiResponse<TaskMembersResponse> getMembers(
+            @PathVariable int taskId) {
+        return taskService.getMembers(taskId);
+    }
+
+    // INVITE USER TO TASK (OWNER)
+    @PostMapping("/{taskId}/members/{userId}/invite")
+    public ApiResponse<String> inviteMember(
+            @PathVariable int taskId,
             @PathVariable int userId) {
-        return taskService.removeMember(id, userId);
+        return taskService.inviteMember(taskId, userId);
+    }
+
+    // REMOVE MEMBER (OWNER / ADMIN)
+    @DeleteMapping("/{taskId}/members/{userId}")
+    public ApiResponse<String> removeMember(
+            @PathVariable int taskId,
+            @PathVariable int userId) {
+        return taskService.removeMember(taskId, userId);
+    }
+
+    /* ===================== INVITATION ===================== */
+
+    // GET MY INVITATIONS
+    @GetMapping("/invitations")
+    public ApiResponse<List<TaskResponse>> getMyInvitations() {
+        return taskService.getMyInvitations();
+    }
+
+    // ACCEPT INVITATION
+    @PostMapping("/{taskId}/accept")
+    public ApiResponse<String> acceptInvitation(
+            @PathVariable int taskId) {
+        return taskService.acceptTask(taskId);
+    }
+
+    // REJECT INVITATION
+    @PostMapping("/{taskId}/reject")
+    public ApiResponse<String> rejectInvitation(
+            @PathVariable int taskId) {
+        return taskService.rejectTask(taskId);
+    }
+
+    // LEAVE TASK (MEMBER)
+    @PostMapping("/{taskId}/leave")
+    public ApiResponse<String> leaveTask(
+            @PathVariable int taskId) {
+        return taskService.leaveTask(taskId);
     }
 }
+

@@ -1,5 +1,6 @@
 package com.example.TaskManagerDemo1.entity;
 
+import com.example.TaskManagerDemo1.enums.MemberStatus;
 import com.example.TaskManagerDemo1.enums.TaskRole;
 import jakarta.persistence.*;
 import lombok.*;
@@ -38,4 +39,9 @@ public class UserTask {
     @Enumerated(EnumType.STRING)
     @Column(nullable = false)
     TaskRole role;
+
+    /* -------- STATUS -------- */
+    @Enumerated(EnumType.STRING)
+    @Column(nullable = false)
+    MemberStatus status;
 }

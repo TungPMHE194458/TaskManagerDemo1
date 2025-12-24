@@ -16,6 +16,11 @@ public enum ErrorCode {
     OWNER_NOT_FOUND(204, "Owner not found"),
     MEMBER_NOT_FOUND(205, "Member not found"),
     MEMBER_ALREADY_EXISTS(206, "Member already exists"),
+    NOT_A_TASK_MEMBER(207, "Not a task member"),
+    OWNER_CANNOT_LEAVE(208, "Owner can't leave"),
+    USER_ALREADY_INVITED(209, "User already invited"),
+    INVITATION_NOT_FOUND(210, "Invitation not found"),
+    USER_ALREADY_IN_TASK(211, "User already in task"),
     // AUTH
     INVALID_USERNAME_OR_PASSWORD(401, "Invalid username or password"),
     TOKEN_GENERATION_FAILED(500, "Cannot generate token"),
