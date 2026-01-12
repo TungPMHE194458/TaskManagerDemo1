@@ -18,6 +18,8 @@ import org.springframework.stereotype.Service;
 import java.util.HashSet;
 import java.util.List;
 
+import static org.springframework.security.authorization.AuthorityReactiveAuthorizationManager.hasRole;
+
 @Service
 @RequiredArgsConstructor
 public class UserService {
@@ -56,7 +58,7 @@ public class UserService {
     }
 
     /* ===================== GET ALL USERS ===================== */
-    @PreAuthorize("hasRole('ADMIN')")
+
     public ApiResponse<List<UserResponse>> getAllUsers() {
         List<UserResponse> users = userRepository.findAll()
                 .stream()
@@ -89,11 +91,12 @@ public class UserService {
     }
 
     /* ===================== DELETE USER ===================== */
+
     @Transactional
     public ApiResponse<String> deleteUser(int userId) {
         Users user = userRepository.findById(userId)
                 .orElseThrow(() -> new AppException(ErrorCode.USER_NOT_FOUND));
-        userRepository.delete(user); // Hibernate tự xóa tất cả liên quan
+        userRepository.delete(user);
 
         return  ApiResponse.success("User deleted");
     }

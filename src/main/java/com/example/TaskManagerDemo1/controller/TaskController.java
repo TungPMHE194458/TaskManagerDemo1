@@ -36,6 +36,7 @@ public class TaskController {
     public ApiResponse<List<TaskResponse>> getMyTasks() {
         return taskService.getMyRootTasks();
     }
+
     //GET TASK BY TASK ID
     @GetMapping("/{id}")
     public ApiResponse<TaskResponse> getTaskById(@PathVariable int id) {
@@ -56,8 +57,8 @@ public class TaskController {
             @RequestBody @Valid TaskUpdateRequest request) {
         return taskService.updateTask(id, request);
     }
+    
     /* ===================== DELETE ===================== */
-
     @DeleteMapping("/{id}")
     public ApiResponse<String> deleteTask(@PathVariable int id) {
         return taskService.deleteTask(id);

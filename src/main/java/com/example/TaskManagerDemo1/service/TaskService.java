@@ -236,16 +236,21 @@ public class TaskService {
     /**
      * GET MY ROOT TASKS
      */
+
     public ApiResponse<List<TaskResponse>> getMyRootTasks() {
 
         Users user = getCurrentUser();
 
         return ApiResponse.success(
                 userTaskRepository
-                        .findByUserAndStatus(user, MemberStatus.ACCEPTED)
+                        .findByUser(user)
                         .stream()
+                        .filter(ut ->
+                                ut.getRole() == TaskRole.OWNER ||
+                                        ut.getStatus() == MemberStatus.ACCEPTED
+                        )
                         .map(UserTask::getTask)
-                        .filter(t -> t.getParentTask() == null)
+                        .filter(task -> task.getParentTask() == null)
                         .map(this::mapToResponse)
                         .toList()
         );
